@@ -29,6 +29,26 @@ export default async function AdminLayout({
       icon: 'UserCircle' as const
     },
     { 
+      label: t('contracts'), 
+      href: `/${locale}/contracts`, 
+      icon: 'FileText' as const
+    },
+    {
+      label: t('orders'), 
+      href: `/${locale}/orders`, 
+      icon: 'ClipboardList' as const
+    },
+    {
+      label: t('explanations'),
+      href: `/${locale}/explanations`,
+      icon: 'FileCheck' as const
+    },
+    { 
+      label: t('announcements'), 
+      href: `/${locale}/announcements`, 
+      icon: 'Megaphone' as const
+    },
+    { 
       label: t('structure'), 
       href: `/${locale}/structure`, 
       icon: 'Building' as const

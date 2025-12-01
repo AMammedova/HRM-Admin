@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Building, UserCircle, Calendar, LucideIcon, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Users, Building, UserCircle, Calendar, LucideIcon, ChevronLeft, FileText, FileCheck,ClipboardList,Megaphone } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/atoms/Button';
 
@@ -13,6 +13,10 @@ const iconMap: Record<string, LucideIcon> = {
   Building,
   UserCircle,
   Calendar,
+  FileText,
+  FileCheck,
+  ClipboardList,
+  Megaphone,
 };
 
 export interface SidebarItem {

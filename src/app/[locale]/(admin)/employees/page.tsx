@@ -28,17 +28,7 @@ export default async function EmployeesPage({ params: { locale } }: { params: { 
     <div className="space-y-6">
       <div className="space-y-2">
         <Breadcrumb items={breadcrumbItems} />
-        <PageHeader
-          title={t('employeeCard')}
-          action={
-            <Link href={`/${locale}/employees/create`}>
-              <Button className="bg-red-600 hover:bg-red-700 text-white">
-                <Plus className="mr-2 h-4 w-4" />
-                {t('addNewEmployee')}
-              </Button>
-            </Link>
-          }
-        />
+        
       </div>
       <EmployeesContainer locale={locale} />
     </div>

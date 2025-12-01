@@ -11,4 +11,5 @@ export * from './Label';
 export * from './Select';
 export * from './Toast';
 export * from './Tabs';
+export * from './Textarea';
 

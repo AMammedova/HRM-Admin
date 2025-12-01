@@ -13,8 +13,8 @@ export interface Employee extends Entity {
   phone?: string;
   department?: string;
   status?: 'active' | 'inactive';
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
   // Additional detail fields
   birthDate?: string;
   address?: string;
@@ -48,6 +48,10 @@ export interface CreateEmployeeDto {
   code: string;
   firstName: string;
   lastName: string;
+  birthDate?: string;
+  passportIssueDate?: string;
+  passportExpiryDate?: string;
+  workStartDate?: string;
   position: string;
   branch: string;
   fin: string;
