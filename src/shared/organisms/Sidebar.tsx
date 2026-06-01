@@ -3,9 +3,11 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Building, UserCircle, Calendar, LucideIcon, ChevronLeft, FileText, FileCheck,ClipboardList,Megaphone } from 'lucide-react';
+import { LayoutDashboard, Users, Building, UserCircle, Calendar, LucideIcon, ChevronLeft, FileText, FileCheck, ClipboardList, Megaphone } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/atoms/Button';
+import { usePermissionsContext } from '@/shared/context/PermissionsContext';
+import type { Permission } from '@/shared/types/permissions';
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -23,6 +25,8 @@ export interface SidebarItem {
   label: string;
   href: string;
   icon?: string;
+  /** If set, the item is only shown when the user has this permission */
+  permission?: Permission | string;
 }
 
 export interface SidebarProps {
@@ -34,6 +38,11 @@ export interface SidebarProps {
 
 export function Sidebar({ items, className, isCollapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { hasPermission } = usePermissionsContext();
+
+  const visibleItems = items.filter(
+    (item) => !item.permission || hasPermission(item.permission)
+  );
 
   return (
     <aside
@@ -61,7 +70,7 @@ export function Sidebar({ items, className, isCollapsed = false, onToggle }: Sid
         )}
 
         {/* Menu Items */}
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           const Icon = item.icon ? iconMap[item.icon] : undefined;
 

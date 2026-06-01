@@ -4,6 +4,9 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from './Navbar';
 import { useTranslations } from 'next-intl';
+import { authCookie } from '@/shared/lib/authCookie';
+import { authSession } from '@/shared/lib/authSession';
+import { tokenStorage } from '@/shared/lib/tokenStorage';
 
 export interface NavbarWrapperProps {
   currentLocale: string;
@@ -14,7 +17,9 @@ export function NavbarWrapper({ currentLocale }: NavbarWrapperProps) {
   const tCommon = useTranslations('common');
 
   const handleSignOut = async () => {
-    // Sign out logic will be added when API is ready
+    tokenStorage.clear();
+    authSession.clearPendingLogin();
+    authCookie.clear();
     router.push(`/${currentLocale}/sign-in`);
   };
 

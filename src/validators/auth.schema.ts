@@ -1,9 +1,3 @@
-import { z } from 'zod';
-
-export const signInSchema = z.object({
-  email: z.string().min(1, 'auth.emailRequired').email('auth.emailInvalid'),
-  password: z.string().min(6, 'auth.passwordMin'),
-});
-
-export type SignInFormData = z.infer<typeof signInSchema>;
-
+// Re-exports from canonical location: src/features/auth/schemas/auth.schema.ts
+export { signInSchema } from '@/features/auth/schemas/auth.schema';
+export type { SignInFormData } from '@/features/auth/schemas/auth.schema';

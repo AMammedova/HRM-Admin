@@ -1,3 +1,11 @@
+// Real backend response envelope: { statusCode, message, data }
+export interface BackendResponse<T> {
+  statusCode: number;
+  message: string;
+  data: T;
+}
+
+// Legacy/internal response shape (kept for mock usage)
 export interface ApiResponse<T> {
   data: T;
   message?: string;

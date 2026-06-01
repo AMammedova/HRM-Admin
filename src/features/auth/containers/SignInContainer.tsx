@@ -2,40 +2,49 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { SignInForm } from '../presenters/SignInForm';
-import { SignInFormData } from '@/validators/auth.schema';
-import { useToast } from '@/shared/hooks/useToast';
 import { useTranslations } from 'next-intl';
+import { SignInForm } from '../presenters/SignInForm';
+import { useLogin } from '../hooks/useLogin';
+import { useToast } from '@/shared/hooks/useToast';
+import type { SignInFormData } from '@/features/auth/schemas/auth.schema';
 
 export interface SignInContainerProps {
   locale: string;
 }
 
 export function SignInContainer({ locale }: SignInContainerProps) {
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string>('');
   const router = useRouter();
   const { toast } = useToast();
   const t = useTranslations('auth');
 
-  const handleSubmit = async (data: SignInFormData) => {
-    console.log(data);
-    setLoading(true);
-    setError('');
+  const { mutate: login, isPending, error } = useLogin();
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  const handleSubmit = (data: SignInFormData) => {
+    login(data, {
+      onSuccess: (response) => {
+        toast({ title: t('signInSuccess'), variant: 'default' });
 
-    // For now, just redirect to dashboard without actual authentication
-    toast({
-      title: t('signInSuccess'),
-      variant: 'default',
+        if (response.requiresCompanySelection) {
+          router.push(`/${locale}/select-company`);
+        } else {
+          router.push(`/${locale}/dashboard`);
+        }
+      },
+      onError: (err) => {
+        toast({
+          title: t('signInError'),
+          description: err.message,
+          variant: 'destructive',
+        });
+      },
     });
-
-    router.push(`/${locale}/dashboard`);
-    setLoading(false);
   };
 
-  return <SignInForm onSubmit={handleSubmit} loading={loading} error={error} />;
+  return (
+    <SignInForm
+      onSubmit={handleSubmit}
+      loading={isPending}
+      error={error?.message ?? ''}
+    />
+  );
 }
-

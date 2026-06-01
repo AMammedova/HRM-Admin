@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/atoms/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/atoms/Card';
 import { FormField } from '@/shared/molecules/FormField';
+import { Link } from '@/i18n/navigation';
 import { signInSchema, SignInFormData } from '@/validators/auth.schema';
 
 export interface SignInFormProps {
@@ -50,6 +51,12 @@ export function SignInForm({ onSubmit, loading = false, error }: SignInFormProps
             error={errors.password?.message ? t(errors.password.message as never) : undefined}
             {...register('password')}
           />
+
+          <div className="text-right">
+            <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+              {t('forgotPassword')}
+            </Link>
+          </div>
 
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
