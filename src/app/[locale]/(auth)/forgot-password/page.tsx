@@ -1,14 +1,10 @@
 import { AuthLayout } from '@/shared/templates/AuthLayout';
 import { ForgotPasswordContainer } from '@/features/auth/containers/ForgotPasswordContainer';
 
-export default function ForgotPasswordPage({
-  params: { locale },
-}: {
-  params: { locale: string };
-}) {
+export default function ForgotPasswordPage() {
   return (
     <AuthLayout title="HRM Admin" description="">
-      <ForgotPasswordContainer locale={locale} />
+      <ForgotPasswordContainer />
     </AuthLayout>
   );
 }

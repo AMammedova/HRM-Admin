@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
-import { notFound } from 'next/navigation';
 import { Breadcrumb } from '@/shared/molecules/Breadcrumb';
 import { PageHeader } from '@/shared/organisms/PageHeader';
 import { Button } from '@/shared/atoms/Button';
 import { Card, CardContent } from '@/shared/atoms/Card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/shared/atoms/Avatar';
+import { Avatar, AvatarFallback } from '@/shared/atoms/Avatar';
 import { Badge } from '@/shared/atoms/Badge';
 import {
   Accordion,
@@ -16,133 +16,128 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/shared/atoms/Accordion';
-import { mockEmployees } from '@/features/employees/data/mock-employees';
-import { Edit, ArrowLeft, User, Mail, Phone, MapPin, Calendar, CreditCard, Briefcase, GraduationCap, History } from 'lucide-react';
+import { employeesApi } from '@/features/employees/api/employees.api';
+import {
+  formatEmployeeDate,
+  getEmployeeTranslation,
+  getInitialsFromFullName,
+} from '@/features/employees/types/employee.types';
+import { useCompanyId } from '@/shared/hooks/useCompanyId';
+import { ArrowLeft, User, Briefcase, Languages } from 'lucide-react';
 import Link from 'next/link';
+
+function BoolValue({
+  value,
+  yesLabel,
+  noLabel,
+}: {
+  value: boolean;
+  yesLabel: string;
+  noLabel: string;
+}) {
+  return <span>{value ? yesLabel : noLabel}</span>;
+}
 
 export default function EmployeeDetailPage() {
   const params = useParams();
   const locale = params.locale as string;
-  const id = params.id as string;
-  
+  const id = Number(params.id);
+
   const t = useTranslations('employees');
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
+  const companyId = useCompanyId();
 
-  const employee = React.useMemo(() => {
-    return mockEmployees.find((emp) => emp.id === id);
-  }, [id]);
+  const { data: employee, isLoading, isError } = useQuery({
+    queryKey: ['company-employee', companyId, id],
+    queryFn: () => employeesApi.getById(companyId!, id),
+    enabled: !!companyId && !!id,
+  });
 
-  if (!employee) {
-    notFound();
-  }
+  const translation = employee
+    ? getEmployeeTranslation(employee.translations, locale)
+    : undefined;
+
+  const fullName = translation
+    ? `${translation.surname} ${translation.name}`.trim()
+    : '';
 
   const breadcrumbItems = [
     { label: tNav('dashboard'), href: `/${locale}/dashboard` },
     { label: tNav('employees'), href: `/${locale}/employees` },
     { label: t('employeeCard'), href: `/${locale}/employees` },
-    { label: `${employee.firstName} ${employee.lastName}` },
+    { label: fullName || t('employeeDetails') },
   ];
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
+  if (!companyId) {
+    return (
+      <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+        {tCommon('noCompanyInSession')}
+      </div>
+    );
+  }
 
-  // Mock detailed data
-  const detailedEmployee = {
-    ...employee,
-    birthDate: '1990-05-15',
-    address: 'Bakı şəhəri, Nəsimi rayonu, Mərdəkan qəsəbəsi',
-    passportNumber: 'AZE123456',
-    passportIssueDate: '2015-01-10',
-    passportExpiryDate: '2025-01-10',
-    workStartDate: '2020-03-01',
-    contractType: 'Müddətli müqavilə',
-    salary: 2500,
-    bankAccount: 'AZ12NABZ00000000001234567890',
-    emergencyContact: {
-      name: 'Aygün Məmmədova',
-      phone: '+994501234567',
-      relation: 'Həyat yoldaşı',
-    },
-    education: [
-      {
-        institution: 'Bakı Dövlət Universiteti',
-        degree: 'İnformatika və İdarəetmə',
-        startDate: '2008-09-01',
-        endDate: '2012-06-30',
-      },
-    ],
-    workHistory: [
-      {
-        company: 'Tech Solutions MMC',
-        position: 'Junior Developer',
-        startDate: '2012-07-01',
-        endDate: '2015-12-31',
-      },
-      {
-        company: 'Digital Innovations',
-        position: 'Middle Developer',
-        startDate: '2016-01-01',
-        endDate: '2020-02-29',
-      },
-    ],
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-12 text-muted-foreground">
+        {tCommon('loading')}
+      </div>
+    );
+  }
+
+  if (isError || !employee) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-8 text-center text-destructive">
+        {t('loadError')}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <Breadcrumb items={breadcrumbItems} />
         <PageHeader
-          title={`${employee.firstName} ${employee.lastName}`}
+          title={fullName}
           action={
-            <div className="flex items-center gap-2">
-              <Link href={`/${locale}/employees`}>
-                <Button variant="outline">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  {tCommon('back')}
-                </Button>
-              </Link>
-              <Link href={`/${locale}/employees/${id}/edit`}>
-                <Button>
-                  <Edit className="mr-2 h-4 w-4" />
-                  {tCommon('edit')}
-                </Button>
-              </Link>
-            </div>
+            <Link href={`/${locale}/employees`}>
+              <Button variant="outline">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {tCommon('back')}
+              </Button>
+            </Link>
           }
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Card */}
         <Card className="lg:col-span-1 lg:self-start">
           <CardContent className="p-6">
             <div className="flex flex-col items-center text-center space-y-4">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={employee.avatar} alt={`${employee.firstName} ${employee.lastName}`} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                  {getInitials(employee.firstName, employee.lastName)}
+                  {getInitialsFromFullName(fullName)}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-xl font-bold">
-                  {employee.firstName} {employee.lastName}
-                </h2>
-                <p className="text-muted-foreground mt-1">{employee.position}</p>
-                <Badge variant={employee.status === 'active' ? 'success' : 'secondary'} className="mt-2">
-                  {t(employee.status || 'active')}
-                </Badge>
+                <h2 className="text-xl font-bold">{fullName}</h2>
+                {translation?.fatherName && (
+                  <p className="text-muted-foreground mt-1">{translation.fatherName}</p>
+                )}
+                <p className="text-sm text-muted-foreground mt-2">{employee.code}</p>
+                <div className="mt-3">
+                  <Badge variant="outline">
+                    {employee.gender ? t('male') : t('female')}
+                  </Badge>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Details Accordion */}
         <Card className="lg:col-span-2">
           <CardContent className="p-6">
             <Accordion type="single" collapsible className="w-full" defaultValue="personal">
-              {/* Şəxsi məlumatlar */}
               <AccordionItem value="personal">
                 <AccordionTrigger className="text-lg font-semibold">
                   <div className="flex items-center gap-2">
@@ -152,76 +147,65 @@ export default function EmployeeDetailPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('employeeCode')}</label>
-                      <p className="mt-1 text-sm font-medium">{employee.code}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('fin')}</label>
-                      <p className="mt-1 text-sm font-medium">{employee.fin}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('birthDate')}</label>
-                      <p className="mt-1 text-sm font-medium">{detailedEmployee.birthDate}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('passportNumber')}</label>
-                      <p className="mt-1 text-sm font-medium">{detailedEmployee.passportNumber}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        {t('address')}
-                      </label>
-                      <p className="mt-1 text-sm font-medium">{detailedEmployee.address}</p>
-                    </div>
+                    <DetailField label={t('employeeCode')} value={employee.code} />
+                    <DetailField label={t('fin')} value={employee.socialCardNum} />
+                    <DetailField label={t('birthDate')} value={formatEmployeeDate(employee.birthDate)} />
+                    <DetailField label={t('birthPlace')} value={employee.birthPlace} />
+                    <DetailField label={t('citizenship')} value={employee.citizenship} />
+                    <DetailField
+                      label={t('gender')}
+                      value={employee.gender ? t('male') : t('female')}
+                    />
+                    <DetailField
+                      label={t('bloodGroupLookupValueId')}
+                      value={String(employee.bloodGroupLookupValueId)}
+                    />
+                    <DetailField label={t('academicDegree')} value={employee.academicDegree} />
+                    <DetailField label={t('militaryCardNum')} value={employee.militaryCardNum} />
+                    <DetailField
+                      label={t('isMarried')}
+                      value={
+                        <BoolValue
+                          value={employee.isMarried}
+                          yesLabel={tCommon('yes')}
+                          noLabel={tCommon('no')}
+                        />
+                      }
+                    />
+                    <DetailField
+                      label={t('hasDriverLicense')}
+                      value={
+                        <BoolValue
+                          value={employee.hasDriverLicense}
+                          yesLabel={tCommon('yes')}
+                          noLabel={tCommon('no')}
+                        />
+                      }
+                    />
+                    <DetailField
+                      label={t('hasMilitaryService')}
+                      value={
+                        <BoolValue
+                          value={employee.hasMilitaryService}
+                          yesLabel={tCommon('yes')}
+                          noLabel={tCommon('no')}
+                        />
+                      }
+                    />
+                    <DetailField
+                      label={t('isForeignNational')}
+                      value={
+                        <BoolValue
+                          value={employee.isForeignNational}
+                          yesLabel={tCommon('yes')}
+                          noLabel={tCommon('no')}
+                        />
+                      }
+                    />
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
-              {/* Əlaqə məlumatları */}
-              <AccordionItem value="contact">
-                <AccordionTrigger className="text-lg font-semibold">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-5 w-5" />
-                    <span>{t('contactInfo')}</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    {employee.email && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          {t('email')}
-                        </label>
-                        <p className="mt-1 text-sm font-medium">{employee.email}</p>
-                      </div>
-                    )}
-                    {employee.phone && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          {t('phone')}
-                        </label>
-                        <p className="mt-1 text-sm font-medium">{employee.phone}</p>
-                      </div>
-                    )}
-                    {detailedEmployee.emergencyContact && (
-                      <div className="col-span-2">
-                        <label className="text-sm font-medium text-muted-foreground">{t('emergencyContact')}</label>
-                        <div className="mt-2 p-3 bg-muted rounded-lg">
-                          <p className="text-sm font-medium">{detailedEmployee.emergencyContact.name}</p>
-                          <p className="text-sm text-muted-foreground">{detailedEmployee.emergencyContact.relation}</p>
-                          <p className="text-sm text-muted-foreground">{detailedEmployee.emergencyContact.phone}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* İş məlumatları */}
               <AccordionItem value="work">
                 <AccordionTrigger className="text-lg font-semibold">
                   <div className="flex items-center gap-2">
@@ -231,99 +215,69 @@ export default function EmployeeDetailPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('position')}</label>
-                      <p className="mt-1 text-sm font-medium">{employee.position}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('department')}</label>
-                      <p className="mt-1 text-sm font-medium">{employee.department || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('branch')}</label>
-                      <p className="mt-1 text-sm font-medium">{employee.branch}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('structure')}</label>
-                      <p className="mt-1 text-sm font-medium">{employee.structure}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        {t('workStartDate')}
-                      </label>
-                      <p className="mt-1 text-sm font-medium">{detailedEmployee.workStartDate}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('contractType')}</label>
-                      <p className="mt-1 text-sm font-medium">{detailedEmployee.contractType}</p>
-                    </div>
-                    {detailedEmployee.workHistory && detailedEmployee.workHistory.length > 0 && (
-                      <div className="col-span-2">
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
-                          <History className="h-4 w-4" />
-                          {t('workHistory')}
-                        </label>
-                        <div className="space-y-3">
-                          {detailedEmployee.workHistory.map((work, index) => (
-                            <div key={index} className="p-3 bg-muted rounded-lg">
-                              <p className="text-sm font-medium">{work.company}</p>
-                              <p className="text-sm text-muted-foreground">{work.position}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {work.startDate} - {work.endDate}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <DetailField
+                      label={t('isTaxCalculated')}
+                      value={
+                        <BoolValue
+                          value={employee.isTaxCalculated}
+                          yesLabel={tCommon('yes')}
+                          noLabel={tCommon('no')}
+                        />
+                      }
+                    />
+                    <DetailField
+                      label={t('maxDeductionPercent')}
+                      value={`${employee.maxDeductionPercent}%`}
+                    />
+                    <DetailField
+                      label={t('autoCalcOvertime')}
+                      value={
+                        <BoolValue
+                          value={employee.autoCalcOvertime}
+                          yesLabel={tCommon('yes')}
+                          noLabel={tCommon('no')}
+                        />
+                      }
+                    />
+                    <DetailField
+                      label={t('vacationPercent')}
+                      value={`${employee.vacationPercent}%`}
+                    />
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
-              {/* Təhsil */}
-              {detailedEmployee.education && detailedEmployee.education.length > 0 && (
-                <AccordionItem value="education">
-                  <AccordionTrigger className="text-lg font-semibold">
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5" />
-                      <span>{t('education')}</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-3 pt-2">
-                      {detailedEmployee.education.map((edu, index) => (
-                        <div key={index} className="p-3 bg-muted rounded-lg">
-                          <p className="text-sm font-medium">{edu.institution}</p>
-                          <p className="text-sm text-muted-foreground">{edu.degree}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {edu.startDate} - {edu.endDate}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              )}
-
-              {/* Maliyyə məlumatları */}
-              <AccordionItem value="financial">
+              <AccordionItem value="translations">
                 <AccordionTrigger className="text-lg font-semibold">
                   <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    <span>{t('financialInfo')}</span>
+                    <Languages className="h-5 w-5" />
+                    <span>{t('translations')}</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('salary')}</label>
-                      <p className="mt-1 text-sm font-medium">{detailedEmployee.salary} AZN</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t('bankAccount')}</label>
-                      <p className="mt-1 text-sm font-medium font-mono text-xs">{detailedEmployee.bankAccount}</p>
-                    </div>
+                  <div className="overflow-x-auto pt-2">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-muted-foreground">
+                          <th className="pb-2 pr-4 font-medium">{t('language')}</th>
+                          <th className="pb-2 pr-4 font-medium">{t('surname')}</th>
+                          <th className="pb-2 pr-4 font-medium">{t('firstName')}</th>
+                          <th className="pb-2 font-medium">{t('fatherName')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {employee.translations.map((tr) => (
+                          <tr key={tr.languageCode} className="border-b last:border-0">
+                            <td className="py-3 pr-4 font-medium">
+                              {t(`lang.${tr.languageCode}`)}
+                            </td>
+                            <td className="py-3 pr-4">{tr.surname}</td>
+                            <td className="py-3 pr-4">{tr.name}</td>
+                            <td className="py-3">{tr.fatherName}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -331,6 +285,21 @@ export default function EmployeeDetailPage() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function DetailField({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-medium text-muted-foreground">{label}</label>
+      <p className="mt-1 text-sm font-medium">{value || '—'}</p>
     </div>
   );
 }

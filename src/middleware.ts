@@ -25,7 +25,16 @@ function parseLocalePath(pathname: string): { locale: string; path: string } {
 }
 
 export default function middleware(request: NextRequest) {
-  const { locale, path } = parseLocalePath(request.nextUrl.pathname);
+  const pathname = request.nextUrl.pathname;
+  const segments = pathname.split('/').filter(Boolean);
+  const locales = routing.locales as readonly string[];
+
+  if (segments.length > 0 && !locales.includes(segments[0] as (typeof locales)[number])) {
+    const rest = segments.length > 1 ? segments.slice(1).join('/') : segments[0];
+    return NextResponse.redirect(new URL(`/${routing.defaultLocale}/${rest}`, request.url));
+  }
+
+  const { locale, path } = parseLocalePath(pathname);
   const hasAuth = request.cookies.get(AUTH_COOKIE)?.value === '1';
   const isPublicAuthRoute = PUBLIC_AUTH_PATHS.includes(path);
 
@@ -46,5 +55,5 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/(az|en|ru)/:path*'],
+  matcher: ['/', '/((?!api|_next|_vercel|.*\\..*).*)'],
 };

@@ -1,67 +1,112 @@
-import { Entity } from '@/shared/types/id';
+export interface EmployeeTranslation {
+  languageCode: 'az' | 'en' | 'ru';
+  surname: string;
+  name: string;
+  fatherName: string;
+}
 
-export interface Employee extends Entity {
-  code: string; // İşçi kodu (e.g., GRM112323)
-  firstName: string;
-  lastName: string;
-  position: string; // Vəzifə
-  branch: string; // Fillial
-  fin: string; // FİN
-  structure: string; // Struktur
-  avatar?: string;
-  email?: string;
-  phone?: string;
-  department?: string;
-  status?: 'active' | 'inactive';
-  createdAt: string;
-  updatedAt: string;
-  // Additional detail fields
-  birthDate?: string;
-  address?: string;
-  passportNumber?: string;
-  passportIssueDate?: string;
-  passportExpiryDate?: string;
-  workStartDate?: string;
-  contractType?: string;
-  salary?: number;
-  bankAccount?: string;
-  emergencyContact?: {
-    name: string;
-    phone: string;
-    relation: string;
-  };
-  education?: Array<{
-    institution: string;
-    degree: string;
-    startDate: string;
-    endDate: string;
-  }>;
-  workHistory?: Array<{
-    company: string;
-    position: string;
-    startDate: string;
-    endDate: string;
-  }>;
+export interface EmployeeListItem {
+  id: number;
+  code: string;
+  fullName: string;
+  birthDate: string;
+  gender: boolean;
+  isActive: boolean;
+}
+
+export interface Employee {
+  id: number;
+  companyId: number;
+  code: string;
+  birthDate: string;
+  birthPlace: string;
+  citizenship: string;
+  gender: boolean;
+  socialCardNum: string;
+  bloodGroupLookupValueId: number;
+  isMarried: boolean;
+  hasDriverLicense: boolean;
+  hasMilitaryService: boolean;
+  militaryCardNum: string;
+  academicDegree: string;
+  isForeignNational: boolean;
+  isTaxCalculated: boolean;
+  maxDeductionPercent: number;
+  autoCalcOvertime: boolean;
+  vacationPercent: number;
+  translations: EmployeeTranslation[];
+}
+
+export interface EmployeeDetail extends Employee {
+  [key: string]: unknown;
 }
 
 export interface CreateEmployeeDto {
+  companyId: number;
   code: string;
-  firstName: string;
-  lastName: string;
-  birthDate?: string;
-  passportIssueDate?: string;
-  passportExpiryDate?: string;
-  workStartDate?: string;
-  position: string;
-  branch: string;
-  fin: string;
-  structure: string;
-  avatar?: string;
-  email?: string;
-  phone?: string;
-  department?: string;
-  status?: 'active' | 'inactive';
+  birthDate: string;
+  birthPlace: string;
+  citizenship: string;
+  gender: boolean;
+  socialCardNum: string;
+  bloodGroupLookupValueId: number;
+  isMarried: boolean;
+  hasDriverLicense: boolean;
+  hasMilitaryService: boolean;
+  militaryCardNum: string;
+  academicDegree: string;
+  isForeignNational: boolean;
+  isTaxCalculated: boolean;
+  maxDeductionPercent: number;
+  autoCalcOvertime: boolean;
+  vacationPercent: number;
+  translations: EmployeeTranslation[];
 }
 
-export interface UpdateEmployeeDto extends Partial<CreateEmployeeDto> {}
+export interface UpdateEmployeeDto extends CreateEmployeeDto {
+  id: number;
+}
 
+export interface EmployeesListData {
+  items: EmployeeListItem[];
+  pageNumber: number;
+  totalPages: number;
+  totalCount: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface EmployeesQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
+
+export interface EmployeeDropdownItem {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export function getEmployeeTranslation(
+  translations: EmployeeTranslation[],
+  locale: string
+): EmployeeTranslation | undefined {
+  return (
+    translations.find((tr) => tr.languageCode === locale) ??
+    translations.find((tr) => tr.languageCode === 'az') ??
+    translations[0]
+  );
+}
+
+export function formatEmployeeDate(value?: string | null): string {
+  if (!value) return '—';
+  return value.slice(0, 10);
+}
+
+export function getInitialsFromFullName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+}

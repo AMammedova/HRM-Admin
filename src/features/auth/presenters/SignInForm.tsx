@@ -68,13 +68,6 @@ export function SignInForm({ onSubmit, loading = false, error }: SignInFormProps
             {loading ? tCommon('loading') : t('signIn')}
           </Button>
 
-          <div className="text-sm text-muted-foreground text-center space-y-1">
-            <p>Demo credentials:</p>
-            <p className="font-mono text-xs">
-              Email: admin@hrm.az<br />
-              Password: admin123
-            </p>
-          </div>
         </form>
       </CardContent>
     </Card>

@@ -2,6 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { authSession } from './authSession';
 import { tokenStorage } from './tokenStorage';
 import { permissionStorage } from './permissionStorage';
+import { getApiLocale } from './apiLocale';
 
 function getAccessToken(): string | null {
   return tokenStorage.getToken() ?? authSession.getPendingAccessToken();
@@ -41,6 +42,7 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    config.headers['Accept-Language'] = getApiLocale();
     return config;
   },
   (error) => Promise.reject(error)
@@ -86,7 +88,12 @@ apiClient.interceptors.response.use(
       const { data } = await axios.post(
         `${BASE_URL}/panel/auth/refresh-token`,
         { token: accessToken, refreshToken },
-        { headers: { 'Content-Type': 'application/json' } }
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept-Language': getApiLocale(),
+          },
+        }
       );
 
       const newToken: string = data.data.token;

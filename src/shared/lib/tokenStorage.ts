@@ -1,3 +1,5 @@
+import { getCompanyIdFromToken } from './jwt';
+
 const ACCESS_TOKEN_KEY = 'hrm_access_token';
 const REFRESH_TOKEN_KEY = 'hrm_refresh_token';
 
@@ -27,6 +29,10 @@ export const tokenStorage = {
   setTokens: (accessToken: string, refreshToken: string): void => {
     tokenStorage.setToken(accessToken);
     tokenStorage.setRefreshToken(refreshToken);
+  },
+
+  getCompanyId: (): number | null => {
+    return getCompanyIdFromToken(tokenStorage.getToken());
   },
 
   clear: (): void => {

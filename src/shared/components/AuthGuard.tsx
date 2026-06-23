@@ -1,18 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { tokenStorage } from '@/shared/lib/tokenStorage';
 import { permissionStorage } from '@/shared/lib/permissionStorage';
 import { PermissionsProvider } from '@/shared/context/PermissionsContext';
 import { authApi } from '@/features/auth/api/auth.api';
 
 export interface AuthGuardProps {
-  locale: string;
   children: React.ReactNode;
 }
 
-export function AuthGuard({ locale, children }: AuthGuardProps) {
+export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const [ready, setReady] = React.useState(false);
 
@@ -23,7 +22,7 @@ export function AuthGuard({ locale, children }: AuthGuardProps) {
 
   React.useEffect(() => {
     if (!tokenStorage.getToken()) {
-      router.replace(`/${locale}/sign-in`);
+      router.replace('/sign-in');
       return;
     }
 
@@ -40,7 +39,7 @@ export function AuthGuard({ locale, children }: AuthGuardProps) {
         // Keep cached permissions on network errors; axios interceptor
         // handles 401 → token refresh or redirect to sign-in
       });
-  }, [locale, router]);
+  }, [router]);
 
   if (!ready) {
     return null;

@@ -2,10 +2,9 @@
 
 import * as React from 'react';
 import { isAxiosError } from 'axios';
-import { useRouter } from 'next/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { CheckCircle2 } from 'lucide-react';
-import { Link } from '@/i18n/navigation';
 import { Button } from '@/shared/atoms/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/atoms/Card';
 import { ForgotPasswordEmailForm } from '../presenters/ForgotPasswordEmailForm';
@@ -21,10 +20,6 @@ import type {
 
 type Step = 'email' | 'otp' | 'password' | 'success';
 
-export interface ForgotPasswordContainerProps {
-  locale: string;
-}
-
 function getErrorMessage(error: Error): string {
   if (isAxiosError(error)) {
     const message = error.response?.data?.message;
@@ -33,7 +28,7 @@ function getErrorMessage(error: Error): string {
   return error.message || 'Unknown error';
 }
 
-export function ForgotPasswordContainer({ locale }: ForgotPasswordContainerProps) {
+export function ForgotPasswordContainer() {
   const router = useRouter();
   const { toast } = useToast();
   const t = useTranslations('auth');
@@ -161,7 +156,7 @@ export function ForgotPasswordContainer({ locale }: ForgotPasswordContainerProps
             <CardDescription>{t('resetPasswordSuccessDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => router.push(`/${locale}/sign-in`)}>
+            <Button className="w-full" onClick={() => router.push('/sign-in')}>
               {t('backToSignIn')}
             </Button>
           </CardContent>

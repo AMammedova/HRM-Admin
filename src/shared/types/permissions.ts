@@ -30,6 +30,12 @@ export const PERMISSIONS = {
     EDIT: 'Users.Edit',
     DELETE: 'Users.Delete',
   },
+  COMPANIES: {
+    VIEW: 'Companies.View',
+    CREATE: 'Companies.Create',
+    EDIT: 'Companies.Edit',
+    DELETE: 'Companies.Delete',
+  },
   EXPLANATIONS: {
     VIEW: 'Explanations.View',
     CREATE: 'Explanations.Create',

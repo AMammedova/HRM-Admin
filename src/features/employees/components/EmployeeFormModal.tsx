@@ -1,636 +1,376 @@
 'use client';
 
 import * as React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/atoms/Dialog';
-import { Button } from '@/shared/atoms/Button';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/shared/atoms/Form';
-import { Input } from '@/shared/atoms/Input';
-import { useForm, SubmitHandler } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Employee, CreateEmployeeDto, UpdateEmployeeDto } from '../types/employee.types';
 import { useTranslations } from 'next-intl';
-import { Calendar } from '@/shared/atoms/Calendar';
-import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/atoms/Popover';
-import { cn } from '@/shared/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/atoms/Select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/atoms/Dialog';
+import { Button } from '@/shared/atoms/Button';
+import { Checkbox } from '@/shared/atoms/Checkbox';
+import { Label } from '@/shared/atoms/Label';
+import { FormField } from '@/shared/molecules/FormField';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/atoms/Tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/atoms/Select';
+import {
+  employeeSchema,
+  EmployeeFormData,
+  defaultEmployeeTranslations,
+  toDateInputValue,
+  toApiDateTime,
+} from '@/validators/employee.schema';
+import {
+  Employee,
+  EmployeeTranslation,
+} from '../types/employee.types';
 
-const employeeFormSchema = z.object({
-  code: z.string().min(1, { message: 'Employee code is required' }),
-  firstName: z.string().min(1, { message: 'First name is required' }),
-  lastName: z.string().min(1, { message: 'Last name is required' }),
-  position: z.string().min(1, { message: 'Position is required' }),
-  branch: z.string().min(1, { message: 'Branch is required' }),
-  fin: z.string().min(1, { message: 'FIN is required' }),
-  structure: z.string().min(1, { message: 'Structure is required' }),
+function normalizeTranslations(translations: EmployeeTranslation[]): EmployeeFormData['translations'] {
+  const defaults = defaultEmployeeTranslations();
+  return defaults.map((def) => {
+    const found = translations.find((tr) => tr.languageCode === def.languageCode);
+    return found
+      ? {
+          languageCode: def.languageCode,
+          surname: found.surname,
+          name: found.name,
+          fatherName: found.fatherName ?? '',
+        }
+      : def;
+  });
+}
 
-  // Empty string becomes undefined
-  email: z.preprocess(
-    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
-    z.string().email({ message: 'Invalid email address' }).optional(),
-  ),
-  phone: z.string().optional(),
-
-  // Dates are normalized to Date or undefined
-  birthDate: z.preprocess(
-    (val) => (val ? new Date(val as any) : undefined),
-    z.date().optional(),
-  ),
-  address: z.string().optional(),
-  passportNumber: z.string().optional(),
-  passportIssueDate: z.preprocess(
-    (val) => (val ? new Date(val as any) : undefined),
-    z.date().optional(),
-  ),
-  passportExpiryDate: z.preprocess(
-    (val) => (val ? new Date(val as any) : undefined),
-    z.date().optional(),
-  ),
-  workStartDate: z.preprocess(
-    (val) => (val ? new Date(val as any) : undefined),
-    z.date().optional(),
-  ),
-  contractType: z.string().optional(),
-
-  // Allow string or number, coerce to number or undefined
-  salary: z.preprocess((val) => {
-    if (val === '' || val === undefined || val === null) return undefined;
-    const n = Number(val);
-    return Number.isNaN(n) ? undefined : n;
-  }, z.number().optional()),
-
-  bankAccount: z.string().optional(),
-});
-
-type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
-
-interface EmployeeFormModalProps {
+export interface EmployeeFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  employee?: Partial<Employee> | null;
-  onSubmit:any;
-  isSubmitting?: boolean;
+  companyId: number;
+  employee?: Employee | null;
+  loadingEmployee?: boolean;
+  onSubmit: (data: EmployeeFormData) => void;
+  loading?: boolean;
 }
+
+const LANGUAGE_TABS = ['az', 'en', 'ru'] as const;
 
 export function EmployeeFormModal({
   open,
   onOpenChange,
+  companyId,
   employee,
+  loadingEmployee = false,
   onSubmit,
-  isSubmitting = false,
+  loading = false,
 }: EmployeeFormModalProps) {
   const t = useTranslations('employees');
   const tCommon = useTranslations('common');
+  const isEdit = !!employee;
 
-  const getDefaultValues = React.useCallback((): EmployeeFormValues => {
-    if (employee) {
-      return {
-        code: employee.code ?? '',
-        firstName: employee.firstName ?? '',
-        lastName: employee.lastName ?? '',
-        position: employee.position ?? '',
-        branch: employee.branch ?? '',
-        fin: employee.fin ?? '',
-        structure: employee.structure ?? '',
-        email: employee.email ?? '',
-        phone: employee.phone ?? '',
-        birthDate: employee.birthDate ? new Date(employee.birthDate) : undefined,
-        address: employee.address ?? '',
-        passportNumber: employee.passportNumber ?? '',
-        passportIssueDate: employee.passportIssueDate ? new Date(employee.passportIssueDate) : undefined,
-        passportExpiryDate: employee.passportExpiryDate ? new Date(employee.passportExpiryDate) : undefined,
-        workStartDate: employee.workStartDate ? new Date(employee.workStartDate) : undefined,
-        contractType: employee.contractType ?? '',
-        salary: employee.salary ?? undefined,
-        bankAccount: employee.bankAccount ?? '',
-      };
-    }
-
-    return {
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<EmployeeFormData>({
+    resolver: zodResolver(employeeSchema),
+    defaultValues: {
+      companyId,
       code: '',
-      firstName: '',
-      lastName: '',
-      position: '',
-      branch: '',
-      fin: '',
-      structure: '',
-      email: '',
-      phone: '',
-      birthDate: undefined,
-      address: '',
-      passportNumber: '',
-      passportIssueDate: undefined,
-      passportExpiryDate: undefined,
-      workStartDate: undefined,
-      contractType: '',
-      salary: undefined,
-      bankAccount: '',
-    };
-  }, [employee]);
-
-  const form = useForm<EmployeeFormValues>({
-    resolver: zodResolver(employeeFormSchema),
-    defaultValues: getDefaultValues(),
+      birthDate: '',
+      birthPlace: '',
+      citizenship: '',
+      gender: true,
+      socialCardNum: '',
+      bloodGroupLookupValueId: 0,
+      isMarried: false,
+      hasDriverLicense: false,
+      hasMilitaryService: false,
+      militaryCardNum: '',
+      academicDegree: '',
+      isForeignNational: false,
+      isTaxCalculated: false,
+      maxDeductionPercent: 0,
+      autoCalcOvertime: false,
+      vacationPercent: 0,
+      translations: defaultEmployeeTranslations(),
+    },
   });
 
+  const translations = watch('translations');
+
+  const getTranslationIndex = (lang: (typeof LANGUAGE_TABS)[number]) =>
+    translations.findIndex((tr) => tr.languageCode === lang);
+
   React.useEffect(() => {
-    if (open) {
-      form.reset(getDefaultValues());
+    if (!open) return;
+
+    if (employee) {
+      reset({
+        companyId: employee.companyId,
+        code: employee.code,
+        birthDate: toDateInputValue(employee.birthDate),
+        birthPlace: employee.birthPlace,
+        citizenship: employee.citizenship,
+        gender: employee.gender,
+        socialCardNum: employee.socialCardNum,
+        bloodGroupLookupValueId: employee.bloodGroupLookupValueId,
+        isMarried: employee.isMarried,
+        hasDriverLicense: employee.hasDriverLicense,
+        hasMilitaryService: employee.hasMilitaryService,
+        militaryCardNum: employee.militaryCardNum ?? '',
+        academicDegree: employee.academicDegree ?? '',
+        isForeignNational: employee.isForeignNational,
+        isTaxCalculated: employee.isTaxCalculated,
+        maxDeductionPercent: employee.maxDeductionPercent,
+        autoCalcOvertime: employee.autoCalcOvertime,
+        vacationPercent: employee.vacationPercent,
+        translations: normalizeTranslations(employee.translations),
+      });
+    } else {
+      reset({
+        companyId,
+        code: '',
+        birthDate: '',
+        birthPlace: '',
+        citizenship: '',
+        gender: true,
+        socialCardNum: '',
+        bloodGroupLookupValueId: 0,
+        isMarried: false,
+        hasDriverLicense: false,
+        hasMilitaryService: false,
+        militaryCardNum: '',
+        academicDegree: '',
+        isForeignNational: false,
+        isTaxCalculated: false,
+        maxDeductionPercent: 0,
+        autoCalcOvertime: false,
+        vacationPercent: 0,
+        translations: defaultEmployeeTranslations(),
+      });
     }
-  }, [employee, open, form, getDefaultValues]);
+  }, [open, employee, companyId, reset]);
 
-  const handleSubmit: SubmitHandler<EmployeeFormValues> = (data) => {
-    const formattedData: CreateEmployeeDto | UpdateEmployeeDto = {
+  const handleFormSubmit = (data: EmployeeFormData) => {
+    onSubmit({
       ...data,
-      birthDate: data.birthDate ? new Date(data.birthDate).toISOString() : undefined,
-      passportIssueDate: data.passportIssueDate ? new Date(data.passportIssueDate).toISOString() : undefined,
-      passportExpiryDate: data.passportExpiryDate ? new Date(data.passportExpiryDate).toISOString() : undefined,
-      workStartDate: data.workStartDate ? new Date(data.workStartDate).toISOString() : undefined,
-    };
-
-    onSubmit?.(formattedData);
+      birthDate: toApiDateTime(data.birthDate),
+      militaryCardNum: data.militaryCardNum ?? '',
+      academicDegree: data.academicDegree ?? '',
+      translations: data.translations.map((tr) => ({
+        ...tr,
+        fatherName: tr.fatherName ?? '',
+      })),
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {employee ? t('editEmployee') : t('addEmployee')}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? t('editEmployee') : t('addEmployee')}</DialogTitle>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('employeeCode')}</FormLabel>
-                    <FormControl>
-                      <Input placeholder="GRM123456" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        {loadingEmployee ? (
+          <p className="text-sm text-muted-foreground">{tCommon('loading')}</p>
+        ) : (
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+            <input type="hidden" {...register('companyId', { valueAsNumber: true })} />
 
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
-                control={form.control}
-                name="fin"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>FİN</FormLabel>
-                    <FormControl>
-                      <Input placeholder="AZE12345678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={t('employeeCode')}
+                placeholder={t('codePlaceholder')}
+                error={errors.code?.message}
+                disabled={loading}
+                {...register('code')}
               />
-
               <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('firstName')}</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={t('birthDate')}
+                type="date"
+                error={errors.birthDate?.message}
+                disabled={loading}
+                {...register('birthDate')}
               />
-
               <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('lastName')}</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={t('birthPlace')}
+                placeholder={t('birthPlacePlaceholder')}
+                error={errors.birthPlace?.message}
+                disabled={loading}
+                {...register('birthPlace')}
               />
-
-              {/* Position */}
               <FormField
-                control={form.control}
-                name="position"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('position')}</FormLabel>
+                label={t('citizenship')}
+                placeholder={t('citizenshipPlaceholder')}
+                error={errors.citizenship?.message}
+                disabled={loading}
+                {...register('citizenship')}
+              />
+              <FormField
+                label={t('fin')}
+                placeholder={t('finPlaceholder')}
+                error={errors.socialCardNum?.message}
+                disabled={loading}
+                {...register('socialCardNum')}
+              />
+              <FormField
+                label={t('bloodGroupLookupValueId')}
+                type="number"
+                error={errors.bloodGroupLookupValueId?.message}
+                disabled={loading}
+                {...register('bloodGroupLookupValueId', { valueAsNumber: true })}
+              />
+              <div className="space-y-2">
+                <Label>{t('gender')}</Label>
+                <Controller
+                  name="gender"
+                  control={control}
+                  render={({ field }) => (
                     <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value ? 'true' : 'false'}
+                      onValueChange={(value) => field.onChange(value === 'true')}
+                      disabled={loading}
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('selectPosition')} />
-                        </SelectTrigger>
-                      </FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="developer">Developer</SelectItem>
-                        <SelectItem value="designer">Designer</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="true">{t('male')}</SelectItem>
+                        <SelectItem value="false">{t('female')}</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Branch */}
+                  )}
+                />
+              </div>
               <FormField
-                control={form.control}
-                name="branch"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('branch')}</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('selectBranch')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="baku">Baku</SelectItem>
-                        <SelectItem value="ganja">Ganja</SelectItem>
-                        <SelectItem value="sumgait">Sumgait</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={t('militaryCardNum')}
+                placeholder={t('militaryCardNumPlaceholder')}
+                error={errors.militaryCardNum?.message}
+                disabled={loading}
+                {...register('militaryCardNum')}
               />
-
-              {/* Structure */}
               <FormField
-                control={form.control}
-                name="structure"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('structure')}</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('selectStructure')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="it">IT Department</SelectItem>
-                        <SelectItem value="hr">Human Resources</SelectItem>
-                        <SelectItem value="finance">Finance</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={t('academicDegree')}
+                placeholder={t('academicDegreePlaceholder')}
+                error={errors.academicDegree?.message}
+                disabled={loading}
+                {...register('academicDegree')}
               />
-
-              {/* Email */}
               <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('email')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="john.doe@example.com"
-                        {...field}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={t('maxDeductionPercent')}
+                type="number"
+                error={errors.maxDeductionPercent?.message}
+                disabled={loading}
+                {...register('maxDeductionPercent', { valueAsNumber: true })}
               />
-
-              {/* Phone */}
               <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('phone')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="+994501234567"
-                        {...field}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Birth date */}
-              <FormField
-                control={form.control}
-                name="birthDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>{t('birthDate')}</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              'pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground',
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date('1900-01-01')
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Work start date */}
-              <FormField
-                control={form.control}
-                name="workStartDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>{t('workStartDate')}</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              'pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground',
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Contract type */}
-              <FormField
-                control={form.control}
-                name="contractType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('contractType')}</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('selectContractType')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="permanent">Permanent</SelectItem>
-                        <SelectItem value="temporary">Temporary</SelectItem>
-                        <SelectItem value="internship">Internship</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Salary */}
-              <FormField
-                control={form.control}
-                name="salary"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('salary')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Passport number */}
-              <FormField
-                control={form.control}
-                name="passportNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('passportNumber')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="AZE1234567"
-                        {...field}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Passport issue date */}
-              <FormField
-                control={form.control}
-                name="passportIssueDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>{t('passportIssueDate')}</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              'pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground',
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Passport expiry date */}
-              <FormField
-                control={form.control}
-                name="passportExpiryDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>{t('passportExpiryDate')}</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              'pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground',
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Bank account */}
-              <FormField
-                control={form.control}
-                name="bankAccount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('bankAccount')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="AZ00XXXX00000000000000000000"
-                        {...field}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Address */}
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>{t('address')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="123 Main St, Baku, Azerbaijan"
-                        {...field}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label={t('vacationPercent')}
+                type="number"
+                error={errors.vacationPercent?.message}
+                disabled={loading}
+                {...register('vacationPercent', { valueAsNumber: true })}
               />
             </div>
 
-            <div className="flex justify-end gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                { name: 'isMarried' as const, label: t('isMarried') },
+                { name: 'hasDriverLicense' as const, label: t('hasDriverLicense') },
+                { name: 'hasMilitaryService' as const, label: t('hasMilitaryService') },
+                { name: 'isForeignNational' as const, label: t('isForeignNational') },
+                { name: 'isTaxCalculated' as const, label: t('isTaxCalculated') },
+                { name: 'autoCalcOvertime' as const, label: t('autoCalcOvertime') },
+              ].map(({ name, label }) => (
+                <div key={name} className="flex items-center gap-3">
+                  <Controller
+                    name={name}
+                    control={control}
+                    render={({ field }) => (
+                      <Checkbox
+                        id={name}
+                        checked={field.value}
+                        disabled={loading}
+                        onCheckedChange={(value) => field.onChange(value === true)}
+                      />
+                    )}
+                  />
+                  <Label htmlFor={name} className="cursor-pointer">{label}</Label>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">{t('translations')}</h3>
+              <Tabs defaultValue="az">
+                <TabsList>
+                  {LANGUAGE_TABS.map((lang) => (
+                    <TabsTrigger key={lang} value={lang}>
+                      {t(`lang.${lang}`)}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {LANGUAGE_TABS.map((lang) => {
+                  const index = getTranslationIndex(lang);
+                  const translationErrors = errors.translations?.[index >= 0 ? index : 0];
+
+                  return (
+                    <TabsContent key={lang} value={lang} className="space-y-4">
+                      <input type="hidden" {...register(`translations.${index}.languageCode`)} />
+
+                      <FormField
+                        label={t('surname')}
+                        placeholder={t('surnamePlaceholder')}
+                        error={translationErrors?.surname?.message}
+                        disabled={loading}
+                        {...register(`translations.${index}.surname`)}
+                      />
+                      <FormField
+                        label={t('firstName')}
+                        placeholder={t('firstNamePlaceholder')}
+                        error={translationErrors?.name?.message}
+                        disabled={loading}
+                        {...register(`translations.${index}.name`)}
+                      />
+                      <FormField
+                        label={t('fatherName')}
+                        placeholder={t('fatherNamePlaceholder')}
+                        error={translationErrors?.fatherName?.message}
+                        disabled={loading}
+                        {...register(`translations.${index}.fatherName`)}
+                      />
+                    </TabsContent>
+                  );
+                })}
+              </Tabs>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
+                disabled={loading}
               >
                 {tCommon('cancel')}
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? tCommon('saving') : tCommon('save')}
+              <Button type="submit" disabled={loading}>
+                {loading ? tCommon('loading') : tCommon('save')}
               </Button>
             </div>
           </form>
-        </Form>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
-
-export default EmployeeFormModal;
