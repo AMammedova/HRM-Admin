@@ -28,6 +28,7 @@ import {
   Briefcase,
   Network,
   Layers,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/atoms/Button';
@@ -56,6 +57,7 @@ const iconMap: Record<string, LucideIcon> = {
   Briefcase,
   Network,
   Layers,
+  Clock,
 };
 
 export interface SidebarItem {

@@ -84,6 +84,11 @@ export default async function AdminLayout({
           href: `/${locale}/business-travel-settings`,
           icon: 'Plane' as const,
         },
+        {
+          label: t('overtimeSettings'),
+          href: `/${locale}/overtime-settings`,
+          icon: 'Clock' as const,
+        },
       ],
     },
     {
